@@ -8,18 +8,22 @@ import { useGLTF } from "@react-three/drei"
 export function Cloud({ opacity, ...props }) {
   const { nodes, materials } = useGLTF("./models/cloud/clouded.glb")
 
+  nodes.cloudball001.material.emissive = new THREE.Color("#6868ff")
+  nodes.cloudball001.material.emissiveIntensity = 0.5
+  nodes.cloudball001.material.metalness = 0.7
+  nodes.cloudball001.material.roughness = 0.4
+  nodes.cloudball001.material.envMapIntensity = 0.8
+
   return (
     <group {...props} dispose={null}>
-      <mesh geometry={nodes.cloudball001.geometry}>
-        <meshStandardMaterial
-          material={nodes.cloudball001.material}
-          color="#ffffff"
-          // emissive={"#6868ff"}
-          // emissiveIntensity={0.2}
-          transparent
-          opacity={opacity}
-        />
-      </mesh>
+      <mesh
+        geometry={nodes.cloudball001.geometry}
+        material={nodes.cloudball001.material}
+        blending={THREE.AdditiveBlending}
+        opacity={opacity}
+        transparent
+        // envMapIntensity={0.1}
+      ></mesh>
     </group>
   )
 }

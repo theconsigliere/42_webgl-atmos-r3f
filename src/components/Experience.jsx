@@ -11,11 +11,16 @@ import * as THREE from "three"
 
 import { Background } from "./Background"
 import { Plane } from "./Plane"
-import { Cloud } from "./Cloud"
+import { TextGroup } from "./TextGroup"
+import { CloudGroup } from "./CloudGroup"
 
 export const Experience = () => {
   const config = {
-    LINE_NB_POINTS: 12000,
+    LINE_NB_POINTS: 1000,
+    CURVE_DISTANCE: 250,
+    CURVE_AHEAD_CAMERA: 0.008,
+    CURVE_AHEAD_AIRPLANE: 0.02,
+    AIRPLANE_MAX_ANGLE: 35,
   }
 
   const cameraGroup = useRef()
@@ -28,16 +33,13 @@ export const Experience = () => {
     return new THREE.CatmullRomCurve3(
       [
         new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(1, 0, -10),
-        new THREE.Vector3(-2, 0, -20),
-        new THREE.Vector3(-3, 0, -30),
-        new THREE.Vector3(0, 0, -40),
-        new THREE.Vector3(5, 0, -50),
-        new THREE.Vector3(7, 0, -60),
-        new THREE.Vector3(5, 0, -70),
-        new THREE.Vector3(0, 0, -80),
-        new THREE.Vector3(0, 0, -90),
-        new THREE.Vector3(0, 0, -100),
+        new THREE.Vector3(0, 0, -config.CURVE_DISTANCE),
+        new THREE.Vector3(100, 0, -2 * config.CURVE_DISTANCE),
+        new THREE.Vector3(-100, 0, -3 * config.CURVE_DISTANCE),
+        new THREE.Vector3(100, 0, -4 * config.CURVE_DISTANCE),
+        new THREE.Vector3(0, 0, -5 * config.CURVE_DISTANCE),
+        new THREE.Vector3(-100, 0, -6 * config.CURVE_DISTANCE),
+        new THREE.Vector3(0, 0, -7 * config.CURVE_DISTANCE),
       ],
       false,
       "catmullrom",
@@ -45,70 +47,86 @@ export const Experience = () => {
     )
   }, [])
 
-  // get points for curved line
-  const linePoints = useMemo(() => {
-    return curve.getPoints(config.LINE_NB_POINTS)
-  }, [curve])
-
   // generate a plane that follows the curve
   const shape = useMemo(() => {
     const shape = new THREE.Shape()
-    shape.moveTo(0, -0.2)
-    shape.lineTo(0, 0.2)
+    shape.moveTo(0, -0.08)
+    shape.lineTo(0, 0.08)
 
     return shape
   }, [curve])
 
   // useFrame to move camera group based on scroll
   useFrame((_state, delta) => {
-    // get current position of line based on scroll percentage
-    const curPointIndex = Math.min(
-      Math.round(scroll.offset * linePoints.length),
-      linePoints.length - 1
-    )
+    // avoid having a negative value
+    const scrollOffset = Math.max(scroll.offset, 0)
 
-    // get closest index
-    const curPoint = linePoints[curPointIndex]
+    // get current position of line based on scroll percentage
+    const curPoint = curve.getPoint(scrollOffset)
 
     // lerp our camera group position to the current point
     cameraGroup.current.position.lerp(curPoint, delta * 24)
 
-    // slightly rotate camera group based on curve
-    const pointAhead =
-      linePoints[Math.min(curPointIndex + 1, linePoints.length - 1)]
+    //make the camera look at the point ahead
+    const lookAtPoint = curve.getPoint(
+      Math.min(scrollOffset + config.CURVE_AHEAD_CAMERA, 1)
+    )
 
-    // lets calcualte the angle between the current point and the next point
-    const xDisplacement = (pointAhead.x - curPoint.x) * 200
+    const currentLookAt = cameraGroup.current.getWorldDirection(
+      new THREE.Vector3()
+    )
 
-    // so we can determine if we are going left or right
-    // Math.PI / 2 -> LEFT
-    // -Math.PI / 2 -> RIGHT
-    // Math.PI / 3 -> MAX ROTATION
-    const angleRotation =
-      (xDisplacement < 0 ? 1 : -1) *
-      Math.min(Math.abs(xDisplacement), Math.PI / 3)
+    const targetLookAt = new THREE.Vector3()
+      .subVectors(curPoint, lookAtPoint)
+      .normalize()
 
-    // we cant lerp a rotation so we will use quaternions
+    // lerp the look at direction
+    const lookAt = currentLookAt.lerp(targetLookAt, delta * 24)
+
+    // set the new look at direction
+    cameraGroup.current.lookAt(cameraGroup.current.position.clone().add(lookAt))
+
+    // AIRPLANE ROTATION
+    const tangent = curve.getTangent(scrollOffset + config.CURVE_AHEAD_AIRPLANE)
+
+    // to avoid smooth effect from the camera we create a new group
+    const nonLerpLookAt = new THREE.Group()
+    nonLerpLookAt.position.copy(curPoint)
+    nonLerpLookAt.lookAt(nonLerpLookAt.position.clone().add(targetLookAt))
+
+    tangent.applyAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      -nonLerpLookAt.rotation.y
+    )
+
+    //calculate the right angle
+
+    let angle = Math.atan2(-tangent.z, tangent.x)
+    angle = -Math.PI / 2 + angle
+
+    let angleDegrees = (angle * 180) / Math.PI
+    angleDegrees *= 2.4 // stronger angle
+
+    // LIMIT PLANE ANGLE
+    if (angleDegrees < 0) {
+      angleDegrees = Math.max(angleDegrees, -config.AIRPLANE_MAX_ANGLE)
+    }
+    if (angleDegrees > 0) {
+      angleDegrees = Math.min(angleDegrees, config.AIRPLANE_MAX_ANGLE)
+    }
+
+    // SET BACK ANGLE
+    // covert angle to radian
+    angle = (angleDegrees * Math.PI) / 180
+
     const targetAirplaneQuaternion = new THREE.Quaternion().setFromEuler(
       new THREE.Euler(
         airplane.current.rotation.x,
         airplane.current.rotation.y,
-        angleRotation
+        angle
       )
     )
-
-    // also rotate the camera group to match the airplane
-    const targetCameraQuaternion = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(
-        cameraGroup.current.rotation.x,
-        angleRotation,
-        cameraGroup.current.rotation.z
-      )
-    )
-
-    // now we have the target rotation we can slerp to it
     airplane.current.quaternion.slerp(targetAirplaneQuaternion, delta * 2)
-    cameraGroup.current.quaternion.slerp(targetCameraQuaternion, delta * 2)
   })
 
   return (
@@ -116,13 +134,15 @@ export const Experience = () => {
       {/* <OrbitControls enableZoom={false} /> */}
       <group ref={cameraGroup}>
         <Background />
-        <PerspectiveCamera position={[0, 0, 5]} fov={30} makeDefault />
+        <PerspectiveCamera position={[0, 0, 5]} fov={40} makeDefault />
         <group ref={airplane}>
-          <Float floatIntensity={2} speed={2}>
+          <Float floatIntensity={2} speed={1.5} rotationIntensity={0.5}>
             <Plane rotation={[0, -Math.PI, 0]} scale={0.45} />
           </Float>
         </group>
       </group>
+
+      <TextGroup />
 
       {/* LINE */}
 
@@ -147,27 +167,17 @@ export const Experience = () => {
               },
             ]}
           />
-          <meshStandardMaterial color={"white"} opacity={0.7} transparent />
+          <meshStandardMaterial
+            color={"white"}
+            opacity={1}
+            transparent
+            envMapIntensity={2}
+          />
         </mesh>
       </group>
 
       {/* CLOUDS */}
-      <Cloud opacity={0.5} scale={[0.3, 0.3, 0.3]} position={[-2, 1, -3]} />
-      <Cloud opacity={0.5} scale={[0.2, 0.3, 0.4]} position={[1.5, -0.5, -2]} />
-      <Cloud
-        opacity={0.7}
-        scale={[0.3, 0.3, 0.4]}
-        rotation-y={Math.PI / 9}
-        position={[2, -0.2, -2]}
-      />
-      <Cloud
-        opacity={0.7}
-        scale={[0.4, 0.4, 0.4]}
-        rotation-y={Math.PI / 9}
-        position={[1, -0.2, -12]}
-      />
-      <Cloud opacity={0.7} scale={[0.5, 0.5, 0.5]} position={[-1, 1, -53]} />
-      <Cloud opacity={0.3} scale={[0.8, 0.8, 0.8]} position={[0, 1, -100]} />
+      <CloudGroup />
     </>
   )
 }

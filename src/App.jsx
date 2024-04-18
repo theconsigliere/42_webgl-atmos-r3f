@@ -15,7 +15,7 @@ function App() {
         <color attach="background" args={["#ececec"]} />
 
         {/* Wrapp experience in scrollcontrols so we can scroll through the experience */}
-        <ScrollControls pages={5} damping={0.3}>
+        <ScrollControls pages={100} damping={1}>
           <Experience />
         </ScrollControls>
         <Lights />
