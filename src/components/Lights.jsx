@@ -4,13 +4,13 @@ import { useFrame } from "@react-three/fiber"
 export default function Lights() {
   const lightRef = useRef()
 
-  useFrame((state) => {
-    // move light behind camera to light up marble player
-    lightRef.current.position.z = state.camera.position.z + 1 - 4
-    // move light to point at marble always + update matrix to do so
-    lightRef.current.target.position.z = state.camera.position.z - 4
-    lightRef.current.target.updateMatrixWorld()
-  })
+  // useFrame((state) => {
+  //   // move light behind camera to light up marble player
+  //   lightRef.current.position.z = state.camera.position.z + 1 - 4
+  //   // move light to point at marble always + update matrix to do so
+  //   lightRef.current.target.position.z = state.camera.position.z - 4
+  //   lightRef.current.target.updateMatrixWorld()
+  // })
 
   return (
     <>
