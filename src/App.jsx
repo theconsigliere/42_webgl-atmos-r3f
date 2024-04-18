@@ -1,6 +1,7 @@
+import { ScrollControls } from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
 import { Experience } from "./components/Experience"
-import { Background } from "./components/Background"
+import Lights from "./components/Lights"
 
 function App() {
   return (
@@ -12,8 +13,12 @@ function App() {
         }}
       >
         <color attach="background" args={["#ececec"]} />
-        <Experience />
-        <Background />
+
+        {/* Wrapp experience in scrollcontrols so we can scroll through the experience */}
+        <ScrollControls pages={5} damping={0.3}>
+          <Experience />
+        </ScrollControls>
+        <Lights />
       </Canvas>
     </>
   )
