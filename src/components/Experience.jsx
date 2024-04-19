@@ -29,22 +29,23 @@ export const Experience = () => {
 
   // create curved line for plane to follow
   // save as memo to prevent re-rendering
+
+  const curvePoints = useMemo(
+    () => [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, -config.CURVE_DISTANCE),
+      new THREE.Vector3(100, 0, -2 * config.CURVE_DISTANCE),
+      new THREE.Vector3(-100, 0, -3 * config.CURVE_DISTANCE),
+      new THREE.Vector3(100, 0, -4 * config.CURVE_DISTANCE),
+      new THREE.Vector3(0, 0, -5 * config.CURVE_DISTANCE),
+      new THREE.Vector3(-100, 0, -6 * config.CURVE_DISTANCE),
+      new THREE.Vector3(0, 0, -7 * config.CURVE_DISTANCE),
+    ],
+    []
+  )
+
   const curve = useMemo(() => {
-    return new THREE.CatmullRomCurve3(
-      [
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, 0, -config.CURVE_DISTANCE),
-        new THREE.Vector3(100, 0, -2 * config.CURVE_DISTANCE),
-        new THREE.Vector3(-100, 0, -3 * config.CURVE_DISTANCE),
-        new THREE.Vector3(100, 0, -4 * config.CURVE_DISTANCE),
-        new THREE.Vector3(0, 0, -5 * config.CURVE_DISTANCE),
-        new THREE.Vector3(-100, 0, -6 * config.CURVE_DISTANCE),
-        new THREE.Vector3(0, 0, -7 * config.CURVE_DISTANCE),
-      ],
-      false,
-      "catmullrom",
-      0.5
-    )
+    return new THREE.CatmullRomCurve3(curvePoints, false, "catmullrom", 0.5)
   }, [])
 
   // generate a plane that follows the curve
